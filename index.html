@@ -1,0 +1,551 @@
+2<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CHEMBTI: 나의 화학 원소 성격은?</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap');
+        
+        body { margin: 0; padding: 0; overflow-x: hidden; background-color: #0d1117; color: white; font-family: 'Noto Sans KR', sans-serif; }
+        #canvas-container { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; }
+
+        .ui-container { position: relative; margin: 5vh auto; width: 90%; max-width: 800px; background: rgba(20, 25, 35, 0.95); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 20px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6); z-index: 1; }
+        
+        .copyright { position: absolute; top: 20px; left: 25px; font-size: 0.85rem; color: rgba(255, 255, 255, 0.4); font-weight: 300; letter-spacing: 0.5px; z-index: 100; text-align: left; }
+
+        h1 { font-size: 2.5rem; margin-bottom: 10px; background: linear-gradient(90deg, #00f2fe, #4facfe); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        p.subtitle { color: #a0aabf; margin-bottom: 30px; font-size: 1.1rem; }
+
+        .progress-container { width: 100%; height: 8px; background: rgba(255, 255, 255, 0.1); border-radius: 10px; margin-bottom: 30px; overflow: hidden; }
+        .progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, #00f2fe, #4facfe); transition: width 0.4s ease; }
+
+        .question-text { font-size: 1.4rem; font-weight: 700; margin-bottom: 40px; word-break: keep-all; line-height: 1.5; }
+        button { display: block; width: 100%; background: rgba(255, 255, 255, 0.05); color: white; border: 1px solid rgba(255, 255, 255, 0.2); padding: 18px 20px; margin-bottom: 15px; font-size: 1.1rem; border-radius: 12px; cursor: pointer; transition: all 0.2s ease; font-family: 'Noto Sans KR', sans-serif; word-break: keep-all; }
+        button:hover { background: rgba(79, 172, 254, 0.2); border-color: #4facfe; transform: translateY(-2px); }
+
+        #result-text { font-size: 4.5rem; font-weight: 900; letter-spacing: 5px; margin: 10px 0; color: #fff; text-shadow: 0 0 15px #4facfe, 0 0 30px #00f2fe; display: flex; justify-content: center; gap: 8px; }
+        .clickable-element { cursor: pointer; transition: all 0.2s; position: relative; display: inline-block; }
+        .clickable-element:hover { color: #00f2fe; transform: scale(1.1) translateY(-5px); }
+        
+        .element-breakdown { background: #0d1117; border: 1px solid rgba(0, 242, 254, 0.3); border-radius: 15px; padding: 25px; margin: 30px 0; text-align: left; }
+        .element-breakdown h3 { color: #00f2fe; text-align: center; margin-top: 0; font-size: 1.3rem; margin-bottom: 20px; }
+        .breakdown-item { display: flex; flex-direction: column; padding: 20px 0; border-bottom: 1px dashed rgba(255,255,255,0.1); }
+        .breakdown-item:last-child { border-bottom: none; }
+        .breakdown-header { display: flex; align-items: center; margin-bottom: 15px; }
+        .breakdown-sym { font-size: 1.8rem; font-weight: 900; color: #4facfe; width: 60px; text-align: center; }
+        .breakdown-desc { font-size: 1.05rem; color: #e6edf3; line-height: 1.5; flex: 1; }
+        
+        .trait-row { background: rgba(0,0,0,0.3); padding: 15px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.05); margin-left: 60px; }
+        .trait-labels { display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 8px; color: #a0aabf; }
+        .trait-labels strong { font-size: 1.15rem; }
+        .trait-bar-bg { width: 100%; height: 10px; background: rgba(255, 255, 255, 0.05); border-radius: 5px; overflow: hidden; display: flex; }
+        .trait-bar-fill { height: 100%; transition: width 1s ease-out; }
+
+        .chem-term { color: #ff9a9e; font-weight: 900; cursor: help; text-decoration: underline dashed rgba(255,154,158,0.6); position: relative; display: inline-block; transition: color 0.2s; }
+        .chem-term:hover { color: #ffb8bc; }
+        .chem-term:hover::after {
+            content: attr(data-tooltip); position: absolute; bottom: 130%; left: 50%; transform: translateX(-50%);
+            background: rgba(10, 15, 25, 0.98); color: #fff; padding: 15px; border-radius: 10px; font-size: 0.95rem; font-weight: 400; line-height: 1.5;
+            width: 350px; text-align: left; z-index: 20000; box-shadow: 0 10px 25px rgba(0,0,0,0.7); border: 1px solid #ff9a9e; word-break: keep-all;
+        }
+
+        .summary-box { background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.1); padding: 35px; border-radius: 15px; text-align: left; box-shadow: inset 0 0 20px rgba(0,0,0,0.5); }
+        .summary-box h3 { margin: 0 0 20px 0; color: #4facfe; font-size: 1.5rem; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px; }
+        .summary-content { margin-bottom: 25px; font-size: 1.05rem; line-height: 1.8; color: #e6edf3; letter-spacing: -0.3px; }
+        .pros-cons { background: rgba(255,255,255,0.03); padding: 20px; border-radius: 12px; margin-top: 20px; font-size: 1rem; line-height: 1.7; border-left: 4px solid #4facfe; }
+        
+        .best-match { margin-top: 25px; padding: 20px; background: linear-gradient(135deg, rgba(79, 172, 254, 0.15), rgba(0, 242, 254, 0.05)); border-radius: 12px; text-align: center; border: 1px solid rgba(79, 172, 254, 0.3); }
+
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); align-items: center; justify-content: center; backdrop-filter: blur(10px); }
+        #pt-modal { z-index: 9999; }
+        #el-modal { z-index: 10000; }
+        
+        .modal-content { background: #161b22; width: 95%; max-width: 800px; padding: 30px; border-radius: 15px; border: 1px solid #30363d; position: relative; max-height: 85vh; overflow-y: auto; text-align: left; }
+        .close-btn { position: absolute; top: 15px; right: 20px; font-size: 2.5rem; cursor: pointer; color: #a0aabf; line-height: 1; }
+        
+        .el-header { display: flex; align-items: center; gap: 20px; border-bottom: 1px solid #30363d; padding-bottom: 20px; margin-bottom: 20px; }
+        .el-symbol-box { width: 100px; height: 100px; background: rgba(79, 172, 254, 0.1); border: 2px solid #4facfe; border-radius: 12px; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .el-num { font-size: 1rem; align-self: flex-start; margin-left: 10px; color: #a0aabf; }
+        .el-sym { font-size: 2.8rem; font-weight: 900; margin-top: -5px; }
+        
+        .el-body { display: flex; flex-wrap: wrap; gap: 30px; }
+        .el-info { flex: 2; min-width: 300px; }
+        .el-info p { margin: 12px 0; font-size: 1rem; color: #c9d1d9; border-bottom: 1px dashed rgba(255,255,255,0.1); padding-bottom: 8px; line-height: 1.6; }
+        .el-info strong { color: #4facfe; display: inline-block; width: 120px; }
+        .el-info span.detail-text { display: block; margin-top: 5px; color: #8b949e; font-size: 0.95rem; line-height: 1.7; }
+        
+        .bohr-container { flex: 1; min-width: 250px; text-align: center; background: rgba(0,0,0,0.3); border-radius: 12px; padding: 20px; border: 1px solid rgba(255,255,255,0.05); height: fit-content; }
+        canvas#bohr-canvas { background: transparent; display: block; margin: 0 auto; }
+        
+        .pt-modal-content { max-width: 1150px; text-align: center; }
+        .pt-grid { display: grid; grid-template-columns: 20px repeat(18, 1fr); gap: 4px; margin-top: 20px; overflow-x: auto; padding-bottom: 10px; align-items: stretch; }
+        .pt-label { display: flex; justify-content: center; align-items: center; font-size: 0.85rem; font-weight: bold; color: #a0aabf; }
+        .pt-cell { aspect-ratio: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 0.9rem; font-weight: bold; cursor: pointer; transition: all 0.2s; position: relative; }
+        .pt-cell:hover { background: #4facfe; color: black; transform: scale(1.2); z-index: 10; box-shadow: 0 5px 15px rgba(0,242,254,0.5); }
+        .pt-cell .atomic-num { position: absolute; top: 2px; left: 3px; font-size: 0.6rem; opacity: 0.7; }
+        
+        .hidden { display: none !important; }
+        .btn-group { display: flex; gap: 10px; margin-top: 30px; }
+        
+        @media (max-width: 600px) {
+            .trait-row { margin-left: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container"></div>
+
+    <div id="start-screen" class="ui-container">
+        <div class="copyright">© 2026 홍채린. Assisted by Gemini.</div>
+        <h1>CHEMBTI</h1>
+        <p class="subtitle">화학 원소로 알아보는 나의 성격 테스트</p>
+        <button onclick="startTest()">검사 시작하기</button>
+    </div>
+
+    <div id="quiz-screen" class="ui-container hidden">
+        <div class="progress-container"><div class="progress-bar" id="progress-bar"></div></div>
+        <div class="question-text" id="question"></div>
+        <button id="btn-A" onclick="selectAnswer('A')"></button>
+        <button id="btn-B" onclick="selectAnswer('B')"></button>
+    </div>
+
+    <div id="result-screen" class="ui-container hidden">
+        <div class="copyright">© 2026 홍채린. Assisted by Gemini.</div>
+        <p class="subtitle" style="margin-top: 15px;">당신을 구성하는 핵심 원소 조합</p>
+        <div id="result-text" title="원소를 클릭하면 상세 정보가 나옵니다!"></div>
+        <div style="font-size: 0.9rem; color:#a0aabf; margin-bottom:20px;">👆 원소를 클릭해 보세요!</div>
+        
+        <div id="element-breakdown" class="element-breakdown"></div>
+        <div class="summary-box" id="result-summary"></div>
+
+        <div class="btn-group">
+            <button onclick="openPTModal()" style="background: rgba(79,172,254,0.2); border-color:#4facfe;">주기율표 전체 보기</button>
+            <button onclick="location.reload()">다시 테스트하기</button>
+        </div>
+    </div>
+
+    <div id="el-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal('el-modal')">&times;</span>
+            <div class="el-header">
+                <div class="el-symbol-box">
+                    <div class="el-num" id="modal-el-num"></div>
+                    <div class="el-sym" id="modal-el-sym"></div>
+                </div>
+                <div class="el-title">
+                    <h2 id="modal-el-name"></h2>
+                    <span style="color:#a0aabf; font-size:1.1rem;" id="modal-el-eng"></span>
+                </div>
+            </div>
+            <div class="el-body">
+                <div class="el-info">
+                    <p><strong>족 / 주기</strong> <span id="modal-el-group"></span></p>
+                    <p><strong>상온 상태 / 밀도</strong> <span id="modal-el-state"></span></p>
+                    <p><strong>원자량</strong> <span id="modal-el-mass"></span></p>
+                    <p><strong>녹는점 / 끓는점</strong> <span id="modal-el-mpbp"></span></p>
+                    <p><strong>대표 화합물</strong> <span class="detail-text" id="modal-el-compounds"></span></p>
+                    <p><strong>생활/산업 활용</strong> <span class="detail-text" id="modal-el-uses"></span></p>
+                    <p><strong>발견의 역사</strong> <span class="detail-text" id="modal-el-history"></span></p>
+                </div>
+                <div class="bohr-container">
+                    <h4 style="margin-top:0; color:#4facfe;">보어 원자 모형</h4>
+                    <canvas id="bohr-canvas" width="220" height="220"></canvas>
+                    <div style="font-size: 0.8rem; color: #8b949e; margin-top: 15px;">※ 껍질별 전자 배치를 나타냅니다.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="pt-modal" class="modal">
+        <div class="modal-content pt-modal-content">
+            <span class="close-btn" onclick="closeModal('pt-modal')">&times;</span>
+            <h2 style="margin-top: 0;">118 원소 주기율표</h2>
+            <p style="color: #a0aabf;">모든 원소를 클릭하여 방대한 화학 데이터를 확인하세요.</p>
+            <div class="pt-grid" id="pt-grid-container"></div>
+        </div>
+    </div>
+
+    <script>
+        // 각 지표별(H-He, K-Au, C-S, O-N) 문항을 1개씩 추가하여 총 20문항(홀수)으로 구성!
+        const questions = [
+            // 외향(H) vs 내향(He) - 5문항
+            { q: "주말을 보내는 나의 완벽한 방법은?", a: "친구들과 밖에서 놀며 에너지를 발산한다.", b: "집에서 푹 쉬면서 나만의 시간을 즐긴다.", typeA: "H", typeB: "He" },
+            { q: "새로운 학기, 낯선 반에 배정되었을 때 나는?", a: "주변 친구들에게 먼저 다가가 활발하게 말을 건다.", b: "누군가 말을 걸어줄 때까지 조용히 상황을 지켜본다.", typeA: "H", typeB: "He" },
+            { q: "스트레스를 받을 때 푸는 방법은?", a: "친구들과 만나서 신나게 수다를 떤다.", b: "조용히 음악을 듣거나 혼자만의 취미 생활을 한다.", typeA: "H", typeB: "He" },
+            { q: "대화를 할 때 나의 포지션은?", a: "주로 이야기를 이끌어가며 분위기를 띄운다.", b: "주로 상대방의 이야기를 깊이 있게 잘 들어준다.", typeA: "H", typeB: "He" },
+            { q: "주말에 갑자기 모든 약속이 취소되었다면 나의 기분은?", a: "'아쉽다...' 당장 만날 수 있는 다른 친구를 찾아본다.", b: "'오히려 좋아!' 드디어 나만의 평화로운 휴식 시간이 생겼다.", typeA: "H", typeB: "He" },
+
+            // 감정(K) vs 이성(Au) - 5문항
+            { q: "친구가 고민을 털어놓았을 때 나의 첫 반응은?", a: "\"헐 진짜? 너무 속상했겠다...\" 먼저 깊게 공감해 준다.", b: "\"그래서 어떻게 해결할 생각이야?\" 현실적인 조언을 한다.", typeA: "K", typeB: "Au" },
+            { q: "갑자기 화가 나는 상황이 발생했다면?", a: "감정을 숨기기 어렵고 표정이나 말투에 바로 드러난다.", b: "일단 이성적으로 생각하며 평정심을 유지하려고 노력한다.", typeA: "K", typeB: "Au" },
+            { q: "슬픈 영화를 볼 때 나는?", a: "주인공의 감정에 동화되어 눈물을 펑펑 흘린다.", b: "'스토리가 좀 슬프네' 하고 비교적 덤덤하게 본다.", typeA: "K", typeB: "Au" },
+            { q: "중요한 결정을 내릴 때 더 중요하게 생각하는 것은?", a: "내 마음이 이끌리는가? (감정과 직관)", b: "논리적이고 합리적인 선택인가? (이성과 팩트)", typeA: "K", typeB: "Au" },
+            { q: "친구가 '나 우울해서 화분 샀어'라고 했을 때 나의 반응은?", a: "\"무슨 일 있어? 왜 우울해ㅠㅠ\"", b: "\"무슨 화분 샀어? 키우기 쉬운 거야?\"", typeA: "K", typeB: "Au" },
+
+            // 계획(C) vs 유연(S) - 5문항
+            { q: "친구들과 여행을 갈 때 나의 스타일은?", a: "시간대별로 동선과 맛집을 촘촘하게 계획한다.", b: "대략적인 목적지만 정하고 그날의 기분에 따라 움직인다.", typeA: "C", typeB: "S" },
+            { q: "수행평가나 시험공부를 할 때 나는?", a: "미리 플래너에 일정을 짜두고 차근차근 완성한다.", b: "마감일이 다가올 때 발휘되는 초인적인 벼락치기를 믿는다.", typeA: "C", typeB: "S" },
+            { q: "내 책상의 상태는 보통 어떤가?", a: "물건들이 항상 제자리에 규칙적으로 정리되어 있다.", b: "약간 어질러져 보이지만, 나름대로의 규칙이 있어 찾기 쉽다.", typeA: "C", typeB: "S" },
+            { q: "예상치 못하게 갑자기 일정이 변경되었을 때?", a: "미리 세워둔 계획이 틀어져서 스트레스를 받는다.", b: "\"오히려 좋아!\" 새로운 상황에 맞게 유연하게 대처한다.", typeA: "C", typeB: "S" },
+            { q: "스마트폰 앱이나 바탕화면을 정리하는 나의 방식은?", a: "용도별, 폴더별로 깔끔하게 분류해 둔다.", b: "자주 쓰는 것만 눈에 띄면 끝! 크게 신경 쓰지 않는다.", typeA: "C", typeB: "S" },
+
+            // 주도/직관(O) vs 서포트/현실(N) - 5문항
+            { q: "조별 과제에서 선호하는 역할은?", a: "조장을 맡아 전체적인 방향성을 잡고 팀을 이끈다.", b: "자료조사나 PPT 제작 등 맡은 바를 묵묵히 지원한다.", typeA: "O", typeB: "N" },
+            { q: "동아리 회의를 할 때 나는?", a: "적극적으로 아이디어를 던지며 새로운 것을 시도한다.", b: "나온 아이디어들을 현실적으로 다듬고 정리해 준다.", typeA: "O", typeB: "N" },
+            { q: "새로운 무언가를 시작할 때 나는?", a: "일단 저지르고 보며 강한 추진력으로 밀어붙인다.", b: "리스크를 확인하고 안정적인 기반을 먼저 다진 후 시작한다.", typeA: "O", typeB: "N" },
+            { q: "주변 친구들이 생각하는 나의 이미지는?", a: "에너지가 넘치고 무리에 활력을 불어넣는 행동파.", b: "흔들림 없이 믿음직스럽고 편안함을 주는 서포터.", typeA: "O", typeB: "N" },
+            { q: "처음 가보는 식당에서 메뉴를 고를 때 나는?", a: "새로 나온 신메뉴나 베스트 메뉴를 과감하게 도전해 본다.", b: "가장 무난하고 실패 확률이 적은 익숙한 메뉴를 선택한다.", typeA: "O", typeB: "N" }
+        ];
+
+        const term = (name, tooltip) => `<span class="chem-term" data-tooltip="${tooltip}">${name}</span>`;
+        const terms = {
+            neu: term("중화 반응", "산과 염기가 만나 물과 염을 생성하며 에너지를 내는 반응"), act: term("활성화 에너지", "반응을 일으키는 데 필요한 최소한의 턱(에너지)"),
+            cat: term("정촉매", "자신은 변하지 않으면서 활성화 에너지를 낮춰 반응 속도를 높여주는 물질"), exo: term("발열 반응", "열을 방출하여 주변을 뜨겁게 달구는 반응"),
+            redox: term("산화-환원", "전자를 잃고 얻으며 에너지를 격렬하게 교환하는 반응"), equ: term("화학 평형", "정반응과 역반응 속도가 같아져 겉으로 보기에 완벽히 안정된 상태"),
+            hbd: term("수소 결합", "분자 간에 작용하는 매우 끈끈하고 강력한 인력"), oct: term("옥텟 규칙", "최외각 전자를 8개로 꽉 채워 완벽한 안정을 찾으려는 본능"),
+            allo: term("동소체", "같은 원소로 이루어졌지만 배열이 달라 완전히 다른 성질을 띠는 물질"), ent: term("엔트로피", "무질서도. 자연은 항상 무질서해지는 방향으로 흐름"),
+            chat: term("르샤틀리에의 원리", "외부 변화를 상쇄하려는 방향으로 평형이 이동하는 원리"), ion: term("이온화 에너지", "전자를 떼어내는 데 필요한 에너지"),
+            buff: term("완충 용액", "외부 산/염기에도 자신의 pH를 꿋꿋하게 유지하는 용액"), nob: term("비활성 기체", "이미 완벽하게 안정되어 남과 반응하지 않는 독립적인 기체"),
+            cov: term("공유 결합", "전자를 서로 공유하며 형성하는 끈끈하고 대등한 결합"), ionb: term("이온 결합", "전자를 주고받으며 생긴 정전기적 인력으로 강하게 뭉친 결합"),
+            pro: term("양성자", "원자핵 속에서 양(+)전하를 띠며 원자의 정체성을 결정하는 입자"), ele: term("전자", "원자핵 주변을 돌며 화학 반응의 핵심적인 역할을 하는 입자"),
+            neu2: term("중성자", "전하를 띠지 않고 양성자와 함께 원자핵의 질량을 채우는 입자"), ely: term("전해질", "물에 녹아 이온으로 나뉘어 전기가 통하게 해주는 물질"),
+            eno: term("전기음성도", "결합한 전자를 자기 쪽으로 끌어당기는 힘"), dip: term("쌍극자", "분자 내에서 전하가 치우쳐 양극과 음극이 나뉘는 현상"),
+            comp: term("화합물", "두 종류 이상의 원소가 일정한 비율로 결합해 완전히 새로운 성질이 된 물질"), mix: term("혼합물", "두 물질 이상이 각각의 성질을 유지한 채 단순히 섞여 있는 상태"),
+            npol: term("무극성", "전하가 어느 한쪽으로 치우치지 않고 공평하게 분배된 안정적인 상태"), pol: term("극성", "전하가 치우쳐 한쪽은 양(+), 다른 한쪽은 음(-)을 띠는 상태"),
+            state: term("상태변화", "온도나 압력에 의해 고체, 액체, 기체로 물질의 형태가 바뀌는 현상"), dens: term("밀도", "일정한 부피 안에 물질이 얼마나 빽빽하게 채워져 있는지를 나타내는 값"),
+            sol: term("용해도", "일정한 온도에서 용매에 최대로 녹을 수 있는 용질의 양"), bp: term("끓는점", "액체가 기체로 끓어오르며 상태변화가 일어나는 온도"),
+            fp: term("어는점", "액체가 고체로 굳어지며 상태변화가 일어나는 온도"), chemc: term("화학 변화", "물질의 본질 자체가 완전히 다른 새로운 물질로 변하는 현상"),
+            oxi: term("산화", "산소를 얻거나 전자를 잃는 반응"), red: term("환원", "산소를 잃거나 전자를 얻어 원래 상태로 되돌아가는 반응")
+        };
+
+        const elementTraits = {
+            "H": "수소처럼 엄청난 친화력! 누구와도 공유결합이 가능한 핵인싸.",
+            "He": "헬륨처럼 반응성이 낮아 안정적! 나만의 궤도를 도는 마이웨이.",
+            "K": "칼륨처럼 물에 닿기만 해도 폭발! 감정이 풍부하고 불꽃 같은 열정.",
+            "Au": "금처럼 반응성이 낮아 안정적! 흔들리지 않는 강철 멘탈과 이성.",
+            "C": "탄소(다이아몬드)처럼 단단하고 규칙적인 결합. 꼼꼼한 계획형.",
+            "S": "황처럼 형태를 자유자재로 바꾸는 동소체! 유연하고 자유로운 영혼.",
+            "O": "산소처럼 연소를 돕는 에너자이저! 팀에 활력을 주고 주도함.",
+            "N": "질소처럼 강력한 삼중결합! 묵묵히 뒤에서 받쳐주는 든든한 서포터."
+        };
+
+        const summaries = {
+            "HKCO": { title: "반응 속도 최강! 폭발적인 리더", content: `당신은 사람들과 어울리는 것을 진심으로 즐기며, 주변에 긍정적인 에너지를 한가득 뿜어내는 사람입니다. 마치 강산과 강염기가 만나 격렬한 ${terms.neu}을 일으키며 에너지를 내뿜는 것처럼, 당신이 속한 조직은 언제나 웃음이 끊이지 않고 활력이 넘칩니다. 사람들을 단순히 섞여 있는 ${terms.mix} 상태로 내버려 두지 않고, 특유의 친화력으로 끈끈한 ${terms.comp}으로 묶어내는 놀라운 재능이 있습니다.<br><br>누군가 망설일 때 기꺼이 ${terms.cat}가 되어 팀의 ${terms.act}를 팍팍 낮춰주고, 높은 ${terms.dens}의 성과를 향해 엄청난 추진력을 발휘하죠. 하지만 일상을 늘 뜨거운 ${terms.exo}처럼 열정적으로 살아가다 보니 감정의 ${terms.bp}이 다소 낮아 쉽게 흥분하거나, 자신의 에너지를 남에게 아낌없이 내어주는 ${terms.oxi} 과정을 거치며 갑작스러운 ${terms.state}를 겪고 방전될 수 있습니다. 심리적 ${terms.equ}을 유지하기 위해 혼자만의 쿨링 타임으로 에너지를 ${terms.red}시키는 것이 꼭 필요합니다.`, pros: `타인의 마음을 단숨에 여는 미친 친화력, 불가능도 가능하게 만드는 강력한 추진력과 열정`, cons: `너무 쉽게 끓어오르는 감정과 넘치는 에너지 탓에 급격한 번아웃이 올 수 있음`, match: "HeAuSN" },
+            "HAuCO": { title: "오차 없는 실험실의 메인 연구원", content: `당신은 감정에 휩쓸리지 않고 냉철한 이성으로 철저히 상황을 분석하는 완벽주의 리더입니다. 사람들과 소통하는 것을 즐기고 원만한 ${terms.cov}을 형성하지만, 결정을 내릴 때는 감정보다 합리적인 데이터와 팩트를 가장 중요하게 생각합니다. 마치 뼈대를 단단하게 잡고 있는 탄소(C)처럼, 당신은 외부 환경에 쉽게 흔들리지 않는 ${terms.npol}의 단단함을 바탕으로 팀의 방향성을 완벽하게 설계합니다.<br><br>프로젝트를 진행할 때는 산소(O)처럼 팀원들의 능력을 한계치까지 연소시키며 거대한 ${terms.chemc}를 이끌어냅니다. 그러나 너무 완벽한 ${terms.oct}을 추구하다 보니, 예측하지 못한 돌발 변수나 논리적이지 않은 사람을 만나면 내부적으로 ${terms.dip}가 크게 흔들리며 스트레스를 받습니다. 당신의 높은 ${terms.ion} 때문에 타인이 때론 다가가기 어려워하니, 가끔은 상대의 감정을 읽는 유연한 ${terms.sol}를 기르는 것이 중요합니다.`, pros: `흔들리지 않는 멘탈의 소유자, 감정을 배제한 완벽한 기획력과 실행력`, cons: `결과와 효율에 집중하다 주변 사람들의 사소한 감정적 변화에 둔감해질 수 있음`, match: "HeKSN" },
+            "HKSO": { title: "형태가 자유로운 무한 변신가", content: `상황에 따라 다이아몬드가 되기도 하고 흑연이 되기도 하는 마법 같은 ${terms.allo}처럼, 당신은 어떤 낡은 틀에도 얽매이지 않고 끊임없이 새로운 자극을 갈망하는 진정한 자유의 영혼입니다. 규칙적이고 꽉 막힌 일정보다는 그날그날의 직관에 따라 자신의 ${terms.ele}를 자유롭게 이동시키는 것을 사랑하죠. 주변은 얼핏 보기에 ${terms.ent}가 극대화된 무질서한 상태 같지만, 그 혼돈 속에서 누구도 생각지 못한 기발한 영감을 찾아내는 번뜩이는 천재성을 지녔습니다.<br><br>시작할 때는 언제나 폭발적인 화력으로 시선을 압도하지만, 아쉽게도 감정의 ${terms.fp}이 낮아 쉽게 흥미를 잃어버리는 경향이 있습니다. 산소(O)의 끓어오르는 열정을 지속 가능한 결과물인 ${terms.comp}으로 완성하기 위해서는 최소한의 끈기와 구조적인 결합력이 필요합니다. 묵묵한 인내심이라는 ${terms.pro}를 마음에 하나씩 채워나간다면 상상 이상의 혁신을 이뤄낼 수 있습니다.`, pros: `천부적인 순발력과 탁월한 위기 대처 능력, 톡톡 튀는 창의적인 아이디어 뱅크`, cons: `반복적이고 지루한 일상이나 디테일이 요구되는 꼼꼼한 서류 작업에 극도로 취약함`, match: "HAuCN" },
+            "HKCN": { title: "외유내강! 따뜻한 결합체", content: `부드럽고 몽글몽글한 감성을 지녔으면서도, 할 일 앞에서는 무섭도록 철저하게 해내는 꼼꼼한 성격입니다. 사람들을 하나로 묶어주는 강력한 ${terms.hbd}처럼 섬세한 배려심으로 팀의 결속을 다지면서도, 동시에 탄소(C)가 가지는 수학적인 치밀함으로 일의 디테일을 놓치지 않습니다. 그룹 내에서 ${terms.pol}이 발생해 의견이 충돌할 때, 당신은 유연하게 양측을 이해시키며 갈등을 ${terms.red}시키는 평화 유지군 역할을 탁월하게 수행합니다.<br><br>그러나 다른 사람들의 감정과 부탁을 거절하지 못하고 무리하게 모든 책임을 떠안다 보면, 결국 자신 내부의 ${terms.ely} 균형이 깨지면서 멘탈이 크게 흔들릴 수 있습니다. 가끔은 높은 ${terms.eno}를 발휘해 자신의 이익과 시간부터 이기적으로(?) 챙기는 단호함이 필요합니다. 완벽주의라는 무거운 짐을 조금만 내려놓으세요.`, pros: `사람과의 관계와 업무 성과의 완벽한 밸런스, 타인의 마음을 헤아리는 묵묵한 책임감`, cons: `거절에 대한 심리적 두려움과 내면에서 끊임없이 싸우는 완벽주의적 강박`, match: "HAuSO" },
+            "HKSN": { title: "갈등을 없애는 완충 용액", content: `당신은 누구와도 모나지 않게 어울리는 엄청난 융통성과 친화력을 지녔습니다. 양측의 날카롭고 공격적인 의견이 부딪힐 때, 이를 부드럽게 흡수해 파국을 막아내는 살아있는 ${terms.buff} 역할을 톡톡히 해냅니다! 감수성이 풍부하고 타인을 향한 ${terms.sol}가 높아 다양한 사람들의 이야기를 편견 없이 들어주는 훌륭한 조력자입니다.<br><br>하지만 타인과 너무 쉽게 강한 ${terms.ionb}을 형성하다 보니, 정작 본인의 고유한 주관과 색깔을 잃어버리고 이리저리 끌려다니며 감정이 ${terms.oxi}되는 경우가 많습니다. 주변 환경과 사람들에게 지나치게 맞추다 보면 스스로의 본질적인 ${terms.dens}가 흐려질 수 있으므로, 어떤 상황에서도 흔들리지 않는 단단한 자아의 중심 핵(${terms.pro}과 ${terms.neu2})을 확고히 다지는 훈련이 꼭 필요합니다.`, pros: `상대방의 마음을 편안하게 해주는 탁월한 공감 능력과 팀 내 갈등 중재력`, cons: `갈등을 피하려다 보니 주도적이고 단호한 결정을 내리는 데 큰 부담감을 느낌`, match: "HeAuCO" },
+            "HAuCN": { title: "철두철미한 분석형 설계자", content: `당신의 삶과 일상은 한 치의 오차도 허용하지 않는 정밀한 화학 방정식과 완전히 동일합니다. 감정이라는 변수보다는 철저히 이성과 논리에 따르는 시스템 설계자로, 늘 흔들림 없는 완벽한 ${terms.oct} 상태를 유지하려 치열하게 노력합니다. 인생에서 무계획적인 ${terms.ent}가 증가하는 상황을 극도로 싫어하며, 모든 일정을 통제하에 두고 예상 가능한 궤도 안에서 ${terms.ele}가 돌기를 원합니다.<br><br>이러한 꼼꼼함 덕분에 어떤 일을 맡아도 최고의 품질을 보장하는 단단한 ${terms.comp}을 만들어내지만, 갑작스러운 변수나 비합리적인 감정 호소 앞에서는 ${terms.bp}이 급격히 낮아져 차갑게 반응할 수 있습니다. 가끔은 계획이 틀어지는 ${terms.state}를 겪더라도 유연하게 대처하는 열린 마인드를 기른다면, 그 어떤 화학 물질보다도 강하고 매력적인 존재가 될 것입니다.`, pros: `어떤 위기에도 흔들림 없는 평정심, 소름 돋을 정도로 꼼꼼하고 논리적인 시스템 설계력`, cons: `돌발 상황에 대한 유연한 대처 부족, 지나치게 원칙과 규칙을 따지는 딱딱함`, match: "HKSO" },
+            "HAuSO": { title: "르샤틀리에의 적응왕", content: `당신은 기존의 고리타분한 낡은 규칙에 얽매이는 거부하고 대단히 실용적이며 합리적으로 사고합니다. 주변 환경이 급격하게 요동치며 ${terms.state}를 겪더라도, 당신은 당황하지 않고 ${terms.chat}에 따라 능동적으로 새로운 ${terms.equ} 상태를 재빨리 찾아가는 천재적인 적응력을 자랑합니다! 직관적으로 상황의 맥락을 읽어내고 가장 빠른 지름길을 찾아내는 능력이 탁월하죠.<br><br>하지만 너무 빠르게 결과에 도달하려다 보니, 장기적이고 지루한 마스터플랜을 꾸준히 밀고 나가는 인내심이 다소 부족한 편입니다. 상황이 복잡하게 얽히고 ${terms.pol}이 심화되면, 진득하게 문제를 해결하기보다는 가볍게 기체로 증발해 상황을 회피하려는 경향도 보입니다. 당신의 빠른 두뇌 회전에 묵직한 무게감을 더해줄 결합력이 추가된다면 세상 무서울 것이 없습니다.`, pros: `편견 없는 열린 사고방식과 어떠한 변화 속에서도 살아남는 탁월한 위기 대처 능력`, cons: `단기적인 성과와 효율에 집착하여 장기적인 안목과 끈기, 인내심이 다소 부족함`, match: "HKCN" },
+            "HAuSN": { title: "객관적인 정밀 저울", content: `두루두루 사람들과 원만하게 잘 지내면서도, 언제나 객관적이고 중립적인 시선을 잃지 않는 이성적인 평화주의자입니다. 불필요하고 소모적인 감정 싸움을 극도로 싫어하며, 자신의 한정된 에너지를 가장 효율적으로 사용하길 원합니다. 뜨거운 불꽃을 튀기는 격렬한 ${terms.redox} 반응보다는, 아주 약한 힘으로 느슨하고 편안하게 연결되는 ${terms.npol} 상태의 인간관계를 선호합니다.<br><br>이러한 성향 덕분에 사람들은 당신을 쿨하고 담백한 사람으로 평가하지만, 역으로 누군가와 깊고 끈끈한 ${terms.cov}을 맺거나 자신의 진짜 속마음을 오픈하는 데는 시간이 상당히 오래 걸립니다. 타인과 감정의 ${terms.dip}를 교류하는 것을 두려워하지 말고, 가끔은 방어벽을 낮추어 스스로의 마음을 외부로 표출하는 연습을 해본다면 더욱 풍요로운 관계를 맺을 수 있습니다.`, pros: `외부 상황에 쉽게 휩쓸리거나 동요하지 않는 쿨함, 사물을 꿰뚫어 보는 날카로운 통찰력`, cons: `상대방과 깊고 끈적한 유대감을 쌓는 것에 대해 본능적으로 방어적인 태도를 취함`, match: "HeKCO" },
+            "HeKCO": { title: "끓는점이 높은 츤데레 기획자", content: `평소엔 비활성 기체처럼 한없이 조용하고 차분해 보이지만, 내면 깊은 곳엔 칼륨(K)과 같은 폭발적이고 다채로운 감정과 열정이 펄펄 끓고 있습니다. 본인의 심장을 뛰게 하는 특정 목표나 관심사가 생기면, 완벽한 구조를 치밀하게 기획하고 엄청난 ${terms.exo}을 내뿜으며 전속력으로 돌진합니다. 남들은 상상하지 못할 강한 ${terms.eno}로 원하는 결과를 끌어당기죠.<br><br>하지만 관심 있는 분야에는 누구보다 거대한 에너지를 쏟아붓지만, 자신이 흥미를 느끼지 못하는 사람이나 일에 대해서는 철저하게 무시해버리는 호불호가 매우 강한 편입니다. 대인관계에 있어서도 넓고 얕은 ${terms.mix} 상태보다는, 소수의 사람과 깊고 진한 ${terms.comp}을 형성하는 것을 훨씬 선호합니다. 가끔은 타협을 통해 주변과의 ${terms.sol}를 높여보세요.`, pros: `원하는 것에 꽂히면 발휘되는 압도적인 집중력과 아무도 생각지 못한 번뜩이는 아이디어`, cons: `호불호가 너무나 극명하게 갈려 인간관계가 좁고 깊으며, 다가기 어렵다는 인상을 줌`, match: "HAuSN" },
+            "HeKCN": { title: "보이지 않는 인력, 배려의 아이콘", content: `겉으로 크게 나서서 스포트라이트를 받지는 않지만, 조용히 보이지 않는 곳에서 강력하고 끈끈한 ${terms.hbd}을 형성해 조직 전체를 든든하게 받쳐주는 없어서는 안 될 기둥입니다. 깊은 공감 능력으로 상대방의 아픔을 ${terms.red}시켜주며, 책임감이 강해 자신이 맡은 일은 어떻게든 완벽하게 끝내려는 성향을 가지고 있습니다.<br><br>그러나 남을 세심하게 챙기고 배려하느라 정작 자신의 ${terms.ion}가 바닥으로 떨어지는 줄도 모를 때가 태반입니다. 외부의 자극에 스트레스를 받아 내면에 불필요한 ${terms.ely}가 잔뜩 쌓였음에도, 이를 속으로만 삭이다가 혼자 깊은 우울감에 빠지기도 합니다. 남을 향한 따뜻한 시선을 조금만 거두어, 스스로의 감정을 돌보고 목소리를 내는 연습이 절대적으로 필요합니다.`, pros: `진정성 있고 깊이 있는 인간관계, 변치 않고 남을 지지해 주는 묵묵하고 강한 책임감`, cons: `자신의 힘든 감정이나 불만을 외부로 표현하는 것이 서툴러 혼자 속앓이를 심하게 함`, match: "HAuSO" },
+            "HeKSO": { title: "실험실에 갇힌 자유로운 예술가", content: `자신의 풍부한 감정에 누구보다 솔직하며, 영감이 떠오르는 순간 단번에 엄청난 연쇄 반응을 일으키는 천재적인 예술가 타입입니다. 남들이 정해놓은 숨 막히는 규칙이나 억압적인 통제에 갇히는 것을 끔찍하게 견디지 못하며, 오롯이 자신만의 ${terms.equ} 상태를 외부에서 억지로 방해하는 것을 극도로 싫어합니다.<br><br>기분에 따라 에너지가 크게 요동치기 때문에, 컨디션이 좋은 날에는 세상을 놀라게 할 창의적인 ${terms.chemc}를 만들어내지만 우울한 날에는 끝도 없이 가라앉는 등 성과의 편차가 다소 큰 편입니다. 틀에 박힌 루틴한 업무에는 쉽게 싫증을 내고 회피하려 하죠. 당신의 폭발적인 감수성을 단단하게 잡아줄 수 있는 아주 최소한의 규칙과 일상의 닻(${terms.ionb})을 내린다면, 당신의 재능은 더욱 눈부시게 빛날 것입니다.`, pros: `누구도 흉내 낼 수 없는 독창성과 세상을 다르게 보는 매우 풍부하고 섬세한 감수성`, cons: `심한 감정 기복과 기분파적인 성향, 반복적이고 지루한 업무에 대한 강한 저항감`, match: "HAuCN" },
+            "HeKSN": { title: "예민한 리트머스 종이", content: `타인의 아주 미세한 감정 변화나 조직 내의 묘한 기류를 귀신같이 캐치하는 뛰어난 직관력을 가졌습니다. 주변 사람들의 우울함이나 스트레스를 스펀지처럼 흡수하며 위로해 주지만, 사람들과 섞이면서 자신의 에너지가 고갈되면 반드시 혼자만의 동굴로 들어가 스스로를 온전히 정화하는 고독한 시간이 필요합니다.<br><br>마치 아주 예민한 센서처럼 주변 상황에 따라 자신의 ${terms.state}를 바꾸며 적응하지만, 타인의 불행이나 부정적인 감정에 너무 깊이 동화되어 본인의 심리적 ${terms.dens}마저 위태로워지는 경우가 빈번합니다. 당신의 그 아름답고 따뜻한 공감 능력을 지키기 위해서는, 타인의 문제와 내 문제를 분리하고 건강한 심리적 거리두기라는 단단한 ${terms.cov}의 벽을 세울 줄 알아야 합니다.`, pros: `뛰어난 직관력과 타인의 상처를 진심으로 어루만져 주는 몹시 다정하고 따뜻한 공감 능력`, cons: `타인의 감정과 분위기에 너무 쉽게 휩쓸려 본인의 정신적 에너지가 매우 빠르게 소진됨`, match: "HAuCO" },
+            "HeAuCO": { title: "강력한 금속 결합! AI 전략가", content: `어떤 엄청난 위기 상황이 닥쳐도 감정의 동요 없이 최고 효율의 마스터플랜을 짜내는, 그야말로 냉철한 전략가입니다. 기본적으로 혼자서 깊이 파고들어 일하는 것을 선호하지만, 조직을 리드해야 할 상황이 오면 금속의 자유 ${terms.ele}처럼 유연하면서도 강력하게 프로젝트 전체를 장악하고 통제합니다. 논리적인 데이터와 객관적인 사실만을 기반으로 판단을 내리죠.<br><br>목표를 달성하는 과정보다 철저하게 결과의 완성도라는 ${terms.comp}을 중시하는 성향 탓에, 가끔 피도 눈물도 없는 팩트 폭격기나 AI 같다는 소리를 듣기도 합니다. 논리와 효율의 가치만큼이나, 사람의 마음을 움직이는 보이지 않는 감정의 ${terms.dip} 또한 일을 성사시키는 중요한 열쇠임을 잊지 않는다면 당신은 완벽한 리더가 될 수 있습니다.`, pros: `어떠한 편견도 없는 빈틈없는 데이터 분석력과 상황을 꿰뚫어 보는 압도적인 전략 기획력`, cons: `타인의 감정에 공감하는 능력이 다소 떨어져 냉정하거나 찔러도 피 한 방울 안 날 것 같음`, match: "HKSN" },
+            "HeAuCN": { title: "절대영도의 묵묵한 장인", content: `세상이 아무리 시끄럽고 요란하게 돌아가도, 고요하고 묵묵하게 자신만의 템포와 원칙을 지켜나가는 분야 최고의 장인입니다. 한 번 확고하게 자리 잡힌 자신의 ${terms.equ} 상태를 외부에서 억지로 간섭하거나 바꾸려고 하는 것을 매우 불쾌하게 생각합니다. 다른 사람의 시선을 신경 쓰기보다는, 스스로 납득할 수 있는 완벽한 ${terms.oct}에 도달할 때까지 파고드는 무서운 집중력을 지녔습니다.<br><br>하지만 너무 자신만의 세계관에 깊이 빠져 있다 보니, 타인의 건설적인 피드백마저 거부하고 황소고집을 부리며 융통성 없게 굴 때가 있습니다. 세상은 끊임없는 ${terms.chemc}를 통해 발전한다는 것을 기억하고, 가끔은 자신의 단단한 껍질을 깨고 나와 외부의 새로운 지식을 유연하게 수용하는 열린 태도를 가져보시길 바랍니다.`, pros: `외부의 강한 자극이나 유혹에 절대 흔들리지 않는 엄청난 수준의 집중력과 장인 정신`, cons: `새로운 환경의 변화를 받아들이는 속도가 매우 느리며, 자신만의 세계관에 갇힌 똥고집`, match: "HKSO" },
+            "HeAuSO": { title: "가벼운 이상 기체의 쿨함", content: `복잡하고 끈적한 규칙이나 관습을 지루해하며, 가장 빠르고 효율적인 대안을 순식간에 찾아내는 대단히 이성적이고 쿨한 개인주의자입니다. 최소한의 에너지로 최대의 결과를 뽑아내는 일 처리가 매우 깔끔하며, 타인의 삶에 불필요하게 간섭하는 것도, 간섭받는 것도 원치 않습니다. 철저하게 독립적인 ${terms.npol}의 상태를 지향하죠.<br><br>상황 파악 능력이 뛰어나 위기를 모면하는 재능은 남다르지만, 정말로 골치 아프고 진득하게 파고들어야 하는 난제에 직면했을 때는 그것을 끈기 있게 돌파하기보다는 복잡한 상황 자체를 기체처럼 가볍게 증발시켜 회피하려는 경향을 보입니다. 인생의 중요한 순간에는 잔머리를 굴리기보다 정면으로 부딪혀 단단한 ${terms.ionb}을 형성해보는 경험이 당신을 한 단계 성장시킬 것입니다.`, pros: `군더더기 없이 깔끔하고 완벽한 일 처리 능력과 어떤 상황에도 여유로운 뛰어난 대처력`, cons: `책임감이 막중하거나 갈등이 심화되는 복잡하고 끈적한 상황을 너무 쉽게 회피하려 함`, match: "HKCN" },
+            "HeAuSN": { title: "완전무결한 비활성 기체", content: `어떠한 외부의 긴급 상황이나 요란한 사건 앞에서도 웬만해선 감정이 요동치지 않는 ${terms.nob}의 끝판왕입니다! 항상 무리에서 한 발짝 떨어져 뒤에서 묵묵히 관찰자 모드를 유지하다가, 정말로 누군가 나서야 하는 결정적인 순간에만 가볍게 개입하여 문제를 깔끔하게 해결합니다. <br><br>당신은 이미 스스로 너무나 안정되고 꽉 찬 ${terms.oct} 구조를 갖추고 있어 타인과의 복잡하고 시끄러운 ${terms.redox} 반응에 전혀 욕심이 없습니다. 하지만 이런 극도의 안정감이 외부에서 보기엔 세상만사에 전혀 관심이 없고 무기력해 보인다는 억울한 오해를 불러일으키기도 합니다. 마음속에 숨겨둔 아주 작은 불씨(${terms.act})에 바람을 불어 넣어, 가끔은 사람들과 열정적으로 부딪히고 섞여보는 것은 어떨까요?`, pros: `멘탈이 쉽게 무너지지 않는 최고의 강철 멘탈, 상황을 언제나 객관적으로 관조하는 태도`, cons: `모든 일에 지나치게 방관자적이며 만사에 무관심하고 심하게 소극적인 사람으로 보일 수 있음`, match: "HKCO" }
+        };
+
+        const elementDataExt = {
+            "1": { state: "기체", density: "0.00008988 g/cm³", mass: "1.008", mpbp: "-259.1°C / -252.9°C", comp: "H₂O(물), CH₄(메테인), NH₃(암모니아), HCl(염산)", uses: "수소 연료 전지 자동차(친환경 에너지원), 우주 발사체의 액체 추진 연료, 암모니아 비료 합성의 핵심 원료, 석유 정제 공정, 식물성 기름의 경화(마가린 제조).", history: "1766년 영국의 헨리 캐번디시가 아연 등 금속과 산이 반응할 때 발생하는 '가연성 공기'를 발견했습니다. 우주 전체 질량의 약 75%를 차지하는, 우주에서 가장 가볍고 흔하며 모든 원소의 기원이 되는 물질입니다." },
+            "2": { state: "기체", density: "0.0001786 g/cm³", mass: "4.0026", mpbp: "-272.2°C / -268.9°C", comp: "자연 상태에서 화합물을 형성하지 않음 (완벽한 비활성)", uses: "초전도 자석의 극저온 냉각재(MRI, 입자가속기), 공기보다 가볍고 안전한 파티/기상 관측용 풍선 충전 기체, 심해 잠수부의 잠수병 예방을 위한 산소 혼합 호흡용 가스.", history: "1868년 프랑스의 피에르 장센과 영국의 조지프 노먼 로키어가 개기일식 때 태양 빛의 스펙트럼(노란색 선)에서 처음 발견하여, 그리스어로 태양을 뜻하는 'Helios'에서 그 이름을 따왔습니다. 지구상에서는 천연가스에서 주로 추출됩니다." },
+            "6": { state: "고체", density: "2.267 g/cm³ (흑연)", mass: "12.011", mpbp: "3500°C (승화)", comp: "CO₂(이산화탄소), C₆H₁₂O₆(포도당), CH₄(메테인), 모든 고분자 플라스틱", uses: "연필심과 윤활제(흑연), 보석 및 절단기(다이아몬드), 차세대 첨단 신소재(탄소나노튜브, 그래핀), 철의 강도를 높이는 제련 과정, 지구상 모든 생명체의 유기물을 구성하는 척추 뼈대.", history: "고대부터 숯이나 그을음의 형태로 인류가 가장 친숙하게 사용해 온 원소입니다. 라틴어로 숯을 의미하는 'Carbo'에서 유래되었으며, 18세기 라부아지에에 의해 다이아몬드와 숯이 같은 원소임이 증명되었습니다." },
+            "7": { state: "기체", density: "0.00125 g/cm³", mass: "14.007", mpbp: "-210.0°C / -195.8°C", comp: "NH₃(암모니아), HNO₃(질산), 아미노산, DNA 구조", uses: "과자 봉지 및 식품 포장의 산화 방지 충전재, 병원이나 연구실의 극저온 보관용 액체 질소, 인류의 식량난을 해결한 화학 비료의 필수 원료, 다이너마이트 등 폭발물 제조.", history: "1772년 다니엘 러더퍼드가 밀폐된 공간에서 쥐가 질식한 후 남은 '호흡할 수 없는 공기'를 분리해내며 발견했습니다. 강력한 삼중결합을 하여 상온에서 매우 안정적이며 지구 대기의 약 78%를 든든하게 채우고 있습니다." },
+            "8": { state: "기체", density: "0.00143 g/cm³", mass: "15.999", mpbp: "-218.8°C / -183.0°C", comp: "H₂O(물), CO₂(이산화탄소), Fe₂O₃(산화철), O₃(오존)", uses: "모든 호기성 생명체의 호흡 작용, 물질이 타는 연소 반응의 필수 조건, 강철을 만드는 용광로의 불순물 제거(산화 공정), 의료용 호흡 보조기, 폐수 처리.", history: "1774년 영국의 조지프 프리스틀리가 산화 수은에 돋보기로 햇빛을 모아 가열하여 발생하는 기체를 발견했습니다. 이후 라부아지에가 이 기체가 연소와 호흡의 핵심임을 밝히고 '산소(Oxygen)'라는 이름을 붙였습니다. 지구 지각 질량의 약 46%를 차지합니다." },
+            "11": { state: "고체", density: "0.968 g/cm³", mass: "22.990", mpbp: "97.7°C / 883°C", comp: "NaCl(소금), NaHCO₃(베이킹소다), NaOH(수산화나트륨)", uses: "인간의 신경 전달과 체액 삼투압 조절(소금), 가로등(나트륨 램프), 비누와 세제 제조(수산화나트륨), 제과 제빵 팽창제(베이킹소다), 고속 증식 원자로의 냉각재.", history: "1807년 영국의 험프리 데이비가 수산화나트륨(가성소다)을 전기 분해하여 최초로 분리해 낸 알칼리 금속입니다. 물과 닿으면 수소 기체를 발생시키며 격렬하게 폭발하는 특성이 있어 기름 속에 보관합니다." },
+            "16": { state: "고체", density: "2.07 g/cm³", mass: "32.06", mpbp: "115.2°C / 444.6°C", comp: "H₂SO₄(황산), SO₂(이산화황), H₂S(황화수소)", uses: "산업의 피라 불리는 '황산' 제조(비료, 정유, 배터리), 타이어 등 천연고무의 탄성을 높이는 가황 처리, 화약 및 성냥 제조, 피부염 치료제 및 농약.", history: "고대부터 화산 지대나 온천 근처에서 노란색 결정 형태로 쉽게 발견되어 인류가 오랫동안 사용해 왔습니다. 특유의 고약한 냄새(황화수소) 때문에 성경 등에서는 지옥의 '유황불'로 묘사되기도 했습니다." },
+            "17": { state: "기체", density: "0.0032 g/cm³", mass: "35.45", mpbp: "-101.5°C / -34.0°C", comp: "NaCl(소금), HCl(염산), PVC(폴리염화비닐)", uses: "수돗물 및 수영장의 강력한 살균 소독제, 플라스틱(PVC 파이프 등)의 주원료, 염산 제조, 종이나 펄프의 표백제.", history: "1774년 스웨덴의 칼 빌헬름 셸레가 염산과 이산화 망가니즈를 반응시켜 황록색의 유독한 기체로 처음 분리했습니다. 제1차 세계대전 당시에는 독가스로 사용되는 아픈 역사도 가지고 있습니다." },
+            "19": { state: "고체", density: "0.862 g/cm³", mass: "39.098", mpbp: "63.5°C / 759°C", comp: "KCl(염화칼륨), KNO₃(질산칼륨)", uses: "식물 생장을 돕는 비료의 3대 핵심 요소, 인체의 신경 신호 전달 및 심장 박동 조절 물질, 흑색화약의 주원료(질산칼륨), 특수 유리 제조.", history: "1807년 험프리 데이비가 식물의 재에서 추출한 수산화칼륨을 전기 분해하여 은백색의 금속을 최초로 분리해 냈습니다. 나트륨보다 반응성이 더 커서 물과 닿으면 예쁜 보라색 불꽃을 내며 폭발합니다." },
+            "26": { state: "고체", density: "7.87 g/cm³", mass: "55.845", mpbp: "1538°C / 2862°C", comp: "Fe₂O₃(산화철/녹), 강철(철과 탄소의 합금)", uses: "모든 건축물의 철골 뼈대, 자동차 및 선박의 차체, 우리 몸속 혈액의 적혈구(헤모글로빈) 중심 원자로 산소 운반, 영구 자석.", history: "기원전 1200년경부터 철광석을 뜨거운 불로 제련하는 기술이 발달하며 청동기 시대를 끝내고 본격적인 철기 시대를 열었습니다. 인류 문명 발전에 가장 거대한 영향을 미친 가장 중요하고 실용적인 금속입니다." },
+            "29": { state: "고체", density: "8.96 g/cm³", mass: "63.546", mpbp: "1084.6°C / 2562°C", comp: "CuSO₄(황산구리), 청동(구리-주석 합금), 황동(구리-아연 합금)", uses: "전기 전도성이 뛰어나 집 안의 모든 전선과 전자 기기 회로 기판에 사용, 열 전도율이 높아 보일러 배관 및 주방 용품, 화폐(동전), 훌륭한 항균성을 이용한 문손잡이.", history: "철보다 녹는점이 낮아 인류가 가장 먼저 사용하기 시작한 금속(청동기 시대의 핵심)입니다. 고대 로마 시대에 주로 키프로스(Cyprus) 섬에서 대량으로 채굴되어, 라틴어로 구리를 뜻하는 'Cuprum'이라는 이름이 붙었습니다." },
+            "47": { state: "고체", density: "10.49 g/cm³", mass: "107.87", mpbp: "961.8°C / 2162°C", comp: "AgBr(브로민화은), AgNO₃(질산은)", uses: "아름다운 광택을 이용한 장신구 및 식기류, 빛을 가장 잘 반사하여 고급 거울의 뒷면 코팅, 과거 아날로그 필름 카메라의 감광제, 모든 금속 중 최고의 전기 전도도를 자랑하여 하이엔드 전자 부품의 접점.", history: "금과 함께 고대부터 귀금속으로 널리 사용되었으며, 독(황화물)에 닿으면 즉시 검게 변하는 성질 때문에 고대 왕실이나 귀족들의 식기로 특히 사랑받았습니다. 달과 관련된 신비로운 금속으로 여겨졌습니다." },
+            "79": { state: "고체", density: "19.30 g/cm³", mass: "196.97", mpbp: "1064.2°C / 2970°C", comp: "HAuCl₄(염화 금산) - 화합물을 거의 만들지 않음", uses: "안전 자산으로서의 화폐 및 고급 장신구, 녹슬지 않고 부식되지 않아 치과용 충전재, 스마트폰 및 반도체 등 정밀 전자 기판의 내부식성 도금 코팅, 류머티즘 관절염 치료제.", history: "기원전 6000년경부터 인류가 사용한 가장 오래되고 매혹적인 금속입니다. 산소나 물과 반응하지 않아 수천 년이 지나도 절대 녹슬거나 반짝임을 잃지 않아, 역사적으로 영원함과 절대 권력의 상징으로 여겨졌습니다." }
+        };
+
+        const ptRaw = "1,H,수소,1,1|2,He,헬륨,18,1|3,Li,리튬,1,2|4,Be,베릴륨,2,2|5,B,붕소,13,2|6,C,탄소,14,2|7,N,질소,15,2|8,O,산소,16,2|9,F,플루오린,17,2|10,Ne,네온,18,2|11,Na,나트륨,1,3|12,Mg,마그네슘,2,3|13,Al,알루미늄,13,3|14,Si,규소,14,3|15,P,인,15,3|16,S,황,16,3|17,Cl,염소,17,3|18,Ar,아르곤,18,3|19,K,칼륨,1,4|20,Ca,칼슘,2,4|21,Sc,스칸듐,3,4|22,Ti,타이타늄,4,4|23,V,바나듐,5,4|24,Cr,크로뮴,6,4|25,Mn,망가니즈,7,4|26,Fe,철,8,4|27,Co,코발트,9,4|28,Ni,니켈,10,4|29,Cu,구리,11,4|30,Zn,아연,12,4|31,Ga,갈륨,13,4|32,Ge,저마늄,14,4|33,As,비소,15,4|34,Se,셀레늄,16,4|35,Br,브로민,17,4|36,Kr,크립톤,18,4|37,Rb,루비듐,1,5|38,Sr,스트론튬,2,5|39,Y,이트륨,3,5|40,Zr,지르코늄,4,5|41,Nb,나이오븀,5,5|42,Mo,몰리브데넘,6,5|43,Tc,테크네튬,7,5|44,Ru,루테늄,8,5|45,Rh,로듐,9,5|46,Pd,팔라듐,10,5|47,Ag,은,11,5|48,Cd,카드뮴,12,5|49,In,인듐,13,5|50,Sn,주석,14,5|51,Sb,안티모니,15,5|52,Te,텔루륨,16,5|53,I,아이오딘,17,5|54,Xe,제논,18,5|55,Cs,세슘,1,6|56,Ba,바륨,2,6|57,La,란타넘,3,6|72,Hf,하프늄,4,6|73,Ta,탄탈럼,5,6|74,W,텅스텐,6,6|75,Re,레늄,7,6|76,Os,오스뮴,8,6|77,Ir,이리듐,9,6|78,Pt,백금,10,6|79,Au,금,11,6|80,Hg,수은,12,6|81,Tl,탈륨,13,6|82,Pb,납,14,6|83,Bi,비스무트,15,6|84,Po,폴로늄,16,6|85,At,아스타틴,17,6|86,Rn,라돈,18,6|87,Fr,프랑슘,1,7|88,Ra,라듐,2,7|89,Ac,악티늄,3,7|104,Rf,러더포듐,4,7|105,Db,더브늄,5,7|106,Sg,시보귬,6,7|107,Bh,보륨,7,7|108,Hs,하슘,8,7|109,Mt,마이트너륨,9,7|110,Ds,다름슈타튬,10,7|111,Rg,뢴트게늄,11,7|112,Cn,코페르니슘,12,7|113,Nh,니호늄,13,7|114,Fl,플레로븀,14,7|115,Mc,모스코븀,15,7|116,Lv,리버모륨,16,7|117,Ts,텐네신,17,7|118,Og,오가네손,18,7";
+        const allElements = {};
+        ptRaw.split('|').forEach(item => { let p = item.split(','); allElements[p[1]] = { num: parseInt(p[0]), sym: p[1], name: p[2], group: parseInt(p[3]), period: parseInt(p[4]) }; });
+
+        function getMpBp(num) {
+            const exactData = {
+                3: "180.5°C / 1342°C", 4: "1287°C / 2469°C", 5: "2076°C / 3927°C", 9: "-219.6°C / -188.1°C", 10: "-248.6°C / -246.0°C",
+                12: "650°C / 1090°C", 13: "660.3°C / 2470°C", 14: "1414°C / 3265°C", 15: "44.1°C / 280.5°C", 18: "-189.3°C / -185.8°C",
+                20: "842°C / 1484°C", 21: "1541°C / 2836°C", 22: "1668°C / 3287°C", 23: "1910°C / 3407°C", 24: "1907°C / 2671°C",
+                25: "1246°C / 2061°C", 27: "1495°C / 2927°C", 28: "1455°C / 2730°C", 30: "419.5°C / 907°C", 31: "29.8°C / 2204°C",
+                32: "938.2°C / 2833°C", 33: "817°C (승화)", 34: "221°C / 685°C", 35: "-7.2°C / 58.8°C", 36: "-157.4°C / -153.2°C",
+                37: "39.3°C / 688°C", 38: "777°C / 1382°C", 39: "1522°C / 3338°C", 40: "1855°C / 4409°C", 41: "2477°C / 4744°C",
+                42: "2623°C / 4639°C", 43: "2157°C / 4265°C", 44: "2334°C / 4150°C", 45: "1964°C / 3695°C", 46: "1554.9°C / 2963°C",
+                48: "321.1°C / 767°C", 49: "156.6°C / 2072°C", 50: "231.9°C / 2602°C", 51: "630.6°C / 1587°C", 52: "449.5°C / 988°C",
+                53: "113.7°C / 184.3°C", 54: "-111.8°C / -108.1°C", 55: "28.4°C / 671°C", 56: "727°C / 1897°C", 57: "920°C / 3464°C",
+                72: "2233°C / 4603°C", 73: "3017°C / 5458°C", 74: "3422°C / 5555°C", 75: "3186°C / 5596°C", 76: "3033°C / 5012°C",
+                77: "2446°C / 4428°C", 78: "1768.3°C / 3825°C", 80: "-38.8°C / 356.7°C", 81: "304°C / 1473°C", 82: "327.5°C / 1749°C",
+                83: "271.3°C / 1564°C", 84: "254°C / 962°C", 85: "302°C / 337°C (추정)", 86: "-71°C / -61.7°C", 87: "27°C / 677°C (추정)",
+                88: "700°C / 1737°C", 89: "1050°C / 3198°C"
+            };
+            if (exactData[num]) return exactData[num];
+            if (num >= 104) return "반감기가 매우 짧아 측정 불가 (인공 합성 원소)";
+            return "1기압 기준 데이터 없음";
+        }
+
+        function generateFallbackData(el) {
+            let state = (el.group === 18 || ['N','O','F','Cl'].includes(el.sym)) ? "기체" : (el.sym==='Hg'||el.sym==='Br' ? "액체" : "고체");
+            let mass = (el.num * 2.1).toFixed(2);
+            
+            let groupDesc = ""; let traitDesc = "";
+            if (el.group === 1) { groupDesc = "알칼리 금속"; traitDesc = "물과 격렬하게 반응하며 매우 무른 은백색 금속입니다."; }
+            else if (el.group === 2) { groupDesc = "알칼리 토금속"; traitDesc = "알칼리 금속보다 단단하고 반응성은 약간 낮지만 지각에 풍부합니다."; }
+            else if (el.group === 17) { groupDesc = "할로젠 원소"; traitDesc = "반응성이 매우 커서 자연계에서는 주로 화합물 형태로 존재하며 유독성을 띱니다."; }
+            else if (el.group === 18) { groupDesc = "비활성 기체"; traitDesc = "최외각 전자가 꽉 차 있어 화학적으로 극도로 안정하며 다른 물질과 거의 반응하지 않습니다."; }
+            else if (el.group >= 3 && el.group <= 12) { groupDesc = "전이 금속"; traitDesc = "단단하고 밀도와 녹는점이 높으며, 화려한 색깔의 화합물을 만들거나 훌륭한 촉매로 작용합니다."; }
+            else { groupDesc = "전형 원소"; traitDesc = "금속과 비금속의 성질이 섞여 있거나 독특한 결합 구조를 가집니다."; }
+
+            let history = `이 원소는 원자번호 ${el.num}번의 ${groupDesc}에 속하며, 주기율표의 ${el.period}주기에 위치합니다. ${traitDesc} `;
+            if (el.num >= 100) {
+                history += "입자 가속기를 통해 인간이 인공적으로 찰나의 순간 동안 합성해 낸 것입니다.";
+            } else {
+                history += "자연계에서 극미량 발견되거나 복잡한 광물 속에서 추출됩니다.";
+            }
+
+            let uses = el.num > 92 ? "방사성을 띠거나 반감기가 매우 짧아 일상생활에서의 상업적 용도는 없으며, 주로 무거운 원소의 기원을 밝히는 기초 핵물리학 연구에 사용됩니다." : `${groupDesc} 고유의 화학적/물리적 특성을 활용하여 현대 산업에서 특수 합금을 제조하거나, 반도체 및 디스플레이 공정의 첨가제, 또는 화학 공장의 중요 촉매제로 연구 및 활용되고 있습니다.`;
+            
+            return { state: state, density: "측정하기 어려움/다양함", mass: `${mass} (추정)`, mpbp: getMpBp(el.num), comp: "특수 금속 착화물 또는 할로젠화물", uses: uses, history: history };
+        }
+
+        let currentStep = 0; let scores = { H:0, He:0, K:0, Au:0, C:0, S:0, O:0, N:0 };
+
+        function startTest() {
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('quiz-screen').classList.remove('hidden');
+            showQuestion();
+        }
+
+        function showQuestion() {
+            if (currentStep < questions.length) {
+                document.getElementById('progress-bar').style.width = ((currentStep) / questions.length * 100) + '%';
+                document.getElementById('question').innerText = `Q${currentStep + 1}. ` + questions[currentStep].q;
+                document.getElementById('btn-A').innerText = questions[currentStep].a;
+                document.getElementById('btn-B').innerText = questions[currentStep].b;
+            } else calculateResult();
+        }
+
+        function selectAnswer(choice) {
+            let q = questions[currentStep];
+            if (choice === 'A') scores[q.typeA]++; else scores[q.typeB]++;
+            currentStep++; showQuestion();
+        }
+
+        function calculateResult() {
+            let res1 = scores.H >= scores.He ? "H" : "He";
+            let res2 = scores.K >= scores.Au ? "K" : "Au";
+            let res3 = scores.C >= scores.S ? "C" : "S";
+            let res4 = scores.O >= scores.N ? "O" : "N";
+            let resultArr = [res1, res2, res3, res4];
+            let finalKey = resultArr.join("");
+
+            document.getElementById('quiz-screen').classList.add('hidden');
+            document.getElementById('result-screen').classList.remove('hidden');
+            
+            document.getElementById('result-text').innerHTML = resultArr.map(sym => 
+                `<span class="clickable-element" onclick="openElementModal('${sym}')">${sym}</span>`
+            ).join('');
+
+            const pairs = [ { a:'H', b:'He', ca:'#ff9a9e', cb:'#a1c4fd' }, 
+                            { a:'K', b:'Au', ca:'#ff9a9e', cb:'#a1c4fd' }, 
+                            { a:'C', b:'S', ca:'#ff9a9e', cb:'#a1c4fd' }, 
+                            { a:'O', b:'N', ca:'#ff9a9e', cb:'#a1c4fd' } ];
+
+            let breakdownHtml = `<h3>[ 구성 원소 분석 ]</h3>`;
+            resultArr.forEach((sym, index) => {
+                let pair = pairs[index];
+                let scoreA = scores[pair.a];
+                let scoreB = scores[pair.b];
+                let total = scoreA + scoreB;
+                let pctA = Math.round((scoreA / total) * 100);
+                let pctB = 100 - pctA;
+                
+                breakdownHtml += `
+                    <div class="breakdown-item">
+                        <div class="breakdown-header">
+                            <div class="breakdown-sym">${sym}</div>
+                            <div class="breakdown-desc">${elementTraits[sym]}</div>
+                        </div>
+                        <div class="trait-row">
+                            <div class="trait-labels">
+                                <span><strong style="color:${pair.ca}">${pair.a}</strong> ${pctA}%</span>
+                                <span>${pctB}% <strong style="color:${pair.cb}">${pair.b}</strong></span>
+                            </div>
+                            <div class="trait-bar-bg">
+                                <div class="trait-bar-fill" style="width: ${pctA}%; background: ${pair.ca};"></div>
+                                <div class="trait-bar-fill" style="width: ${pctB}%; background: ${pair.cb};"></div>
+                            </div>
+                        </div>
+                    </div>`;
+            });
+            document.getElementById('element-breakdown').innerHTML = breakdownHtml;
+
+            renderSummary(finalKey);
+            initPeriodicTable();
+        }
+
+        function renderSummary(key) {
+            let sumData = summaries[key];
+            let matchKey = sumData.match;
+            let matchTitle = summaries[matchKey].title; 
+
+            let html = `
+                <h3>🔬 종합 화학 분석 보고서: [ ${sumData.title} ]</h3>
+                <div class="summary-content">${sumData.content}</div>
+                <div class="pros-cons">
+                    <div><strong style="color:#00f2fe;">👍 빛나는 강점:</strong> ${sumData.pros}</div>
+                    <div style="margin-top:10px;"><strong style="color:#ff9a9e;">⚠️ 주의할 점(약점):</strong> ${sumData.cons}</div>
+                </div>
+                <div class="best-match">
+                    <h4 style="margin: 0 0 15px 0; color: #00f2fe; font-size: 1.3rem;">🤝 최고의 짝꿍 화학물</h4>
+                    <div style="font-size: 2.5rem; font-weight: 900; letter-spacing: 3px; color: #fff; margin-bottom: 5px;">${matchKey}</div>
+                    <div style="font-size: 1.15rem; color: #a0aabf;">${matchTitle}</div>
+                </div>
+            `;
+            document.getElementById('result-summary').innerHTML = html;
+        }
+
+        function openElementModal(sym) {
+            let el = allElements[sym];
+            if(!el) return;
+            
+            let data = elementDataExt[el.num] || generateFallbackData(el);
+
+            document.getElementById('modal-el-num').innerText = el.num;
+            document.getElementById('modal-el-sym').innerText = el.sym;
+            document.getElementById('modal-el-name').innerText = el.name;
+            document.getElementById('modal-el-eng').innerText = sym; 
+            document.getElementById('modal-el-group').innerText = `${el.group}족 ${el.period}주기`;
+            
+            document.getElementById('modal-el-state').innerText = `${data.state} / ${data.density}`;
+            document.getElementById('modal-el-mass').innerText = data.mass;
+            document.getElementById('modal-el-mpbp').innerText = data.mpbp;
+            document.getElementById('modal-el-compounds').innerText = data.comp;
+            document.getElementById('modal-el-uses').innerHTML = data.uses;
+            document.getElementById('modal-el-history').innerHTML = data.history;
+
+            document.getElementById('el-modal').style.display = 'flex';
+            drawBohrModel(el.num);
+        }
+
+        function drawBohrModel(atomicNum) {
+            const canvas = document.getElementById('bohr-canvas');
+            const ctx = canvas.getContext('2d');
+            const cw = canvas.width; const ch = canvas.height;
+            const cx = cw / 2; const cy = ch / 2;
+            ctx.clearRect(0, 0, cw, ch);
+            
+            ctx.beginPath(); ctx.arc(cx, cy, 18, 0, 2 * Math.PI);
+            ctx.fillStyle = '#ff4757'; ctx.fill();
+            ctx.fillStyle = '#ffffff'; ctx.font = 'bold 12px Arial';
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText('+' + atomicNum, cx, cy);
+
+            let e = atomicNum; let shells = [];
+            const maxShells = [2, 8, 18, 32, 32, 18, 8]; 
+            if(atomicNum <= 20) {
+                if(e>0) { shells.push(Math.min(e, 2)); e -= 2; }
+                if(e>0) { shells.push(Math.min(e, 8)); e -= 8; }
+                if(e>0) { shells.push(Math.min(e, 8)); e -= 8; }
+                if(e>0) { shells.push(e); }
+            } else {
+                for(let m of maxShells) {
+                    if(e <= 0) break;
+                    shells.push(Math.min(e, m)); e -= m;
+                }
+            }
+
+            for(let i = 0; i < shells.length; i++) {
+                let r = 35 + i * 14; 
+                if(r > cx - 5) break; 
+                ctx.beginPath(); ctx.arc(cx, cy, r, 0, 2 * Math.PI);
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)'; ctx.lineWidth = 1; ctx.stroke();
+
+                let numE = shells[i];
+                for(let j = 0; j < numE; j++) {
+                    let angle = (j / numE) * 2 * Math.PI - (Math.PI/2); 
+                    let ex = cx + r * Math.cos(angle); let ey = cy + r * Math.sin(angle);
+                    ctx.beginPath(); ctx.arc(ex, ey, 3.5, 0, 2 * Math.PI);
+                    ctx.fillStyle = '#00f2fe'; ctx.fill();
+                    ctx.shadowBlur = 5; ctx.shadowColor = '#00f2fe';
+                }
+                ctx.shadowBlur = 0; 
+            }
+        }
+
+        function initPeriodicTable() {
+            const container = document.getElementById('pt-grid-container');
+            container.innerHTML = "";
+            
+            container.appendChild(document.createElement('div'));
+            
+            for(let c = 1; c <= 18; c++) {
+                let label = document.createElement('div');
+                label.className = 'pt-label';
+                label.innerText = c;
+                container.appendChild(label);
+            }
+
+            for(let r = 1; r <= 7; r++) {
+                let pLabel = document.createElement('div');
+                pLabel.className = 'pt-label';
+                pLabel.innerText = r;
+                container.appendChild(pLabel);
+
+                for(let c = 1; c <= 18; c++) {
+                    let cellDiv = document.createElement('div');
+                    let el = Object.values(allElements).find(e => e.period === r && e.group === c);
+                    if(el) {
+                        cellDiv.className = 'pt-cell';
+                        cellDiv.innerHTML = `<span class="atomic-num">${el.num}</span>${el.sym}`;
+                        if(['H','He','C','N','O','S','K','Au'].includes(el.sym)) {
+                            cellDiv.style.background = 'rgba(79, 172, 254, 0.3)'; cellDiv.style.borderColor = '#4facfe';
+                        }
+                        cellDiv.onclick = () => openElementModal(el.sym);
+                    } else {
+                        cellDiv.style.visibility = 'hidden'; 
+                    }
+                    container.appendChild(cellDiv);
+                }
+            }
+        }
+
+        function openPTModal() { document.getElementById('pt-modal').style.display = 'flex'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+        window.onclick = function(e) {
+            if (e.target == document.getElementById('el-modal')) closeModal('el-modal');
+            if (e.target == document.getElementById('pt-modal')) closeModal('pt-modal');
+        }
+
+        let particles = [];
+        function setup() {
+            let cvs = createCanvas(windowWidth, windowHeight); cvs.parent('canvas-container');
+            for (let i = 0; i < 70; i++) particles.push(new Particle());
+        }
+        function draw() {
+            clear(); 
+            for (let p of particles) { p.update(); p.display(); }
+            for (let i = 0; i < particles.length; i++) {
+                for (let j = i + 1; j < particles.length; j++) {
+                    let d = dist(particles[i].x, particles[i].y, particles[j].x, particles[j].y);
+                    if (d < 110) { stroke(79, 172, 254, map(d, 0, 110, 120, 0)); strokeWeight(1); line(particles[i].x, particles[i].y, particles[j].x, particles[j].y); }
+                }
+            }
+        }
+        function windowResized() { resizeCanvas(windowWidth, windowHeight); }
+        class Particle {
+            constructor() { this.x = random(width); this.y = random(height); this.vx = random(-0.5, 0.5); this.vy = random(-0.5, 0.5); this.radius = random(2, 5); this.color = color(random(['#00f2fe', '#4facfe', '#ffffff'])); }
+            update() { this.x += this.vx; this.y += this.vy; if (this.x < 0) this.x = width; if (this.x > width) this.x = 0; if (this.y < 0) this.y = height; if (this.y > height) this.y = 0; }
+            display() { noStroke(); fill(this.color); ellipse(this.x, this.y, this.radius); }
+        }
+    </script>
+</body>
+</html>
